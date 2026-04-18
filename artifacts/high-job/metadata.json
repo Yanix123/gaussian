@@ -1,0 +1,11 @@
+{
+  "jobId": "high-job",
+  "qualityPreset": "high",
+  "registeredImages": 9,
+  "sparsePoints": 1080,
+  "coverageScore": 0.92,
+  "reprojectionError": 0.7,
+  "trainingLoss": 0.03,
+  "frameCount": 12,
+  "artifactFile": "scene.obj"
+}

@@ -1,0 +1,86 @@
+openapi: 3.1.0
+info:
+  title: Gaussian Scan API
+  version: 0.1.0
+paths:
+  /jobs:
+    post:
+      summary: Upload photos and run sync reconstruction
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "201":
+          description: Job completed (or failed) synchronously
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+  /jobs/{jobId}:
+    get:
+      summary: Get job status
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+  /jobs/{jobId}/artifact:
+    get:
+      summary: Get result artifact link
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Download info
+  /artifacts/{jobId}/{fileName}:
+    get:
+      summary: Download generated artifact file
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: fileName
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Artifact file bytes
+components:
+  schemas:
+    Job:
+      type: object
+      required: [job_id, status, stage, progress]
+      properties:
+        job_id: { type: string }
+        jobId: { type: string }
+        status: { type: string, enum: [queued, running, done, failed] }
+        stage: { type: string }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        status_message: { type: string, nullable: true }
+        statusMessage: { type: string, nullable: true }
+        failure_reason: { type: string, nullable: true }
+        failureReason: { type: string, nullable: true }
+        artifact_url: { type: string, nullable: true }
+        artifactUrl: { type: string, nullable: true }

@@ -1,0 +1,11 @@
+{
+  "jobId": "low-job",
+  "qualityPreset": "low",
+  "registeredImages": 9,
+  "sparsePoints": 1080,
+  "coverageScore": 0.78,
+  "reprojectionError": 1.2,
+  "trainingLoss": 0.08,
+  "frameCount": 12,
+  "artifactFile": "scene.obj"
+}
