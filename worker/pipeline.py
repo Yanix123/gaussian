@@ -323,6 +323,11 @@ class GaussianPipeline:
             ]
 
         python_executable = _resolve_train_python_executable(command[0])
+        expected_venv_py = (gs_root / ".venv" / "bin" / "python").resolve()
+        if expected_venv_py.is_file() and python_executable.startswith(
+            ("/usr/bin/python", "/usr/local/bin/python")
+        ):
+            python_executable = str(expected_venv_py)
         command[0] = python_executable
         if not Path(python_executable).is_file():
             raise PipelineError(
@@ -375,18 +380,31 @@ class GaussianPipeline:
             )
 
         gs_root = self.config.gaussian_splatting_root
+        expected_venv_py = gs_root / ".venv" / "bin" / "python"
+        if not expected_venv_py.is_file():
+            raise PipelineError(
+                "GAUSSIAN_SPLATTING_VENV_MISSING",
+                (
+                    f"There is no Python venv for training at {expected_venv_py}. "
+                    "Install graphdeco-inria/gaussian-splatting there (with submodules built). "
+                    f"Example: bash {self.config.repo_root / 'scripts' / 'install_gaussian_splatting_runpod.sh'} "
+                    f"or clone into {gs_root}, then: python3 -m venv .venv && "
+                    "pip install torch && pip install ./submodules/diff-gaussian-rasterization "
+                    "./submodules/simple-knn --no-build-isolation. "
+                    "Set GAUSSIAN_SPLATTING_ROOT if the repo lives elsewhere."
+                ),
+            )
+
+        pip_py = str(expected_venv_py)
         raise PipelineError(
             "TRAINING_EXTENSION_MISSING",
             (
                 f"Missing gaussian-splatting extensions: {missing}. "
-                f"Training uses this interpreter only: {python_executable}. "
-                f"Expected training venv: {gs_root / '.venv' / 'bin' / 'python'}. "
-                "If gaussian-splatting is not beside the app repo, set GAUSSIAN_SPLATTING_ROOT. "
-                "Otherwise activate that venv, cd to the gaussian-splatting repo, run "
-                "git submodule update --init --recursive, then "
-                f'"{python_executable}" -m pip install '
-                "./submodules/diff-gaussian-rasterization ./submodules/simple-knn --no-build-isolation. "
-                "Requires CUDA matching PyTorch, MSVC C++ build tools on Windows, and CUDA_HOME if nvcc is not found."
+                f"Training used interpreter: {python_executable}. "
+                f"Install into the training venv with: {pip_py} -m pip install "
+                "./submodules/diff-gaussian-rasterization ./submodules/simple-knn --no-build-isolation "
+                f"(from {gs_root} after git submodule update --init --recursive). "
+                "CUDA must match PyTorch; set CUDA_HOME if nvcc is not found."
             ),
         )
 
