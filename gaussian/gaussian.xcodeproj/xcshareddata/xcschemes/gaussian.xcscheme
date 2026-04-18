@@ -53,7 +53,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "GAUSSIAN_API_BASE_URL"
-            value = "http://192.168.1.4:8000"
+            value = "https://am844gl26isgdq-8000.proxy.runpod.net"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

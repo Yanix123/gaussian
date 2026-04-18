@@ -19,6 +19,24 @@ class PipelineError(RuntimeError):
         self.code = code
 
 
+def _resolve_train_python_executable(token: str) -> str:
+    """Resolve argv0 for training without turning bare ``python`` into ``{cwd}/python``."""
+    t = token.strip()
+    if os.sep in t or (os.name == "nt" and len(t) > 1 and t[1] == ":"):
+        return str(Path(t).resolve())
+    if t in {"python", "python3"}:
+        found = shutil.which(t) or shutil.which("python3") or shutil.which("python")
+        if found:
+            return found
+    p = Path(t)
+    if p.is_file():
+        return str(p.resolve())
+    found = shutil.which(t)
+    if found:
+        return found
+    return str(Path(t).resolve())
+
+
 @dataclass
 class PipelineMetrics:
     coverage_score: float
@@ -221,7 +239,7 @@ class GaussianPipeline:
                 str(train_dir),
             ]
 
-        python_executable = str(Path(command[0]).resolve())
+        python_executable = _resolve_train_python_executable(command[0])
         command[0] = python_executable
         torch_check = self._subprocess_run_compat(
             [python_executable, "-c", "import torch; print(torch.__version__)"],
