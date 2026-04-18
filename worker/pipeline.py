@@ -127,6 +127,13 @@ class GaussianPipeline:
             return [located]
         return []
 
+    def _colmap_subprocess_env(self) -> dict[str, str]:
+        """COLMAP uses Qt; on headless Linux (RunPod, Docker) there is no X11 — force offscreen."""
+        env = os.environ.copy()
+        if "QT_QPA_PLATFORM" not in env:
+            env["QT_QPA_PLATFORM"] = os.environ.get("GAUSSIAN_QT_QPA_PLATFORM", "offscreen")
+        return env
+
     def _run_colmap(self, job_id: str, uploads_dir: Path, colmap_dir: Path, image_count: int) -> tuple[int, int]:
         colmap_cmd = self._colmap_prefix()
         if self.config.simulate or not colmap_cmd:
@@ -140,6 +147,7 @@ class GaussianPipeline:
         db = colmap_dir / "database.db"
         sparse_dir = colmap_dir / "sparse"
         sparse_dir.mkdir(exist_ok=True)
+        colmap_env = self._colmap_subprocess_env()
         self._run_cmd(
             colmap_cmd
             + [
@@ -148,9 +156,13 @@ class GaussianPipeline:
                 str(db),
                 "--image_path",
                 str(uploads_dir),
-            ]
+            ],
+            env=colmap_env,
         )
-        self._run_cmd(colmap_cmd + ["exhaustive_matcher", "--database_path", str(db)])
+        self._run_cmd(
+            colmap_cmd + ["exhaustive_matcher", "--database_path", str(db)],
+            env=colmap_env,
+        )
         self._run_cmd(
             colmap_cmd
             + [
@@ -161,14 +173,20 @@ class GaussianPipeline:
                 str(uploads_dir),
                 "--output_path",
                 str(sparse_dir),
-            ]
+            ],
+            env=colmap_env,
         )
         # Conservative defaults when parsing outputs is omitted in MVP.
         registered = max(8, int(image_count * 0.7))
         sparse = max(250, registered * 100)
         return registered, sparse
 
-    def _subprocess_run_compat(self, argv: list[str], cwd: Optional[Path] = None):
+    def _subprocess_run_compat(
+        self,
+        argv: list[str],
+        cwd: Optional[Path] = None,
+        env: Optional[dict[str, str]] = None,
+    ):
         """Windows: shell=True + list2cmdline for python.exe (avoids WinError 5 on some setups).
 
         Do not use this for argv starting with cmd /c — wrapping that in shell=True breaks cmd syntax.
@@ -182,8 +200,16 @@ class GaussianPipeline:
                 capture_output=True,
                 text=True,
                 check=False,
+                env=env,
             )
-        return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
+        return subprocess.run(
+            argv,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
 
     def _run_training(self, job_id: str, quality_preset: str, uploads_dir: Path, train_dir: Path) -> None:
         if self.config.simulate:
@@ -413,7 +439,12 @@ f 5/1 4/3 8/4
             sparse_points=sparse_points,
         )
 
-    def _run_cmd(self, command: list[str], cwd: Optional[Path] = None) -> None:
+    def _run_cmd(
+        self,
+        command: list[str],
+        cwd: Optional[Path] = None,
+        env: Optional[dict[str, str]] = None,
+    ) -> None:
         try:
             if os.name == "nt" and len(command) >= 2 and command[0].lower() == "cmd" and command[1] == "/c":
                 # COLMAP.bat: run cmd.exe with argv list — do not wrap in shell=True (breaks with list2cmdline).
@@ -423,9 +454,10 @@ f 5/1 4/3 8/4
                     capture_output=True,
                     text=True,
                     check=False,
+                    env=env,
                 )
             elif os.name == "nt":
-                completed = self._subprocess_run_compat(command, cwd=cwd)
+                completed = self._subprocess_run_compat(command, cwd=cwd, env=env)
             else:
                 completed = subprocess.run(
                     command,
@@ -433,6 +465,7 @@ f 5/1 4/3 8/4
                     capture_output=True,
                     text=True,
                     check=False,
+                    env=env,
                 )
         except FileNotFoundError as exc:
             raise PipelineError(
