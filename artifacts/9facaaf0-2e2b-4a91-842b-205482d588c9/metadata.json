@@ -1,0 +1,11 @@
+{
+  "jobId": "9facaaf0-2e2b-4a91-842b-205482d588c9",
+  "qualityPreset": "medium",
+  "registeredImages": 9,
+  "sparsePoints": 1080,
+  "coverageScore": 0.86,
+  "reprojectionError": 0.95,
+  "trainingLoss": 0.05,
+  "frameCount": 12,
+  "artifactFile": "scene.obj"
+}

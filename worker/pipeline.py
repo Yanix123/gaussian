@@ -302,6 +302,16 @@ class GaussianPipeline:
 
         python_executable = _resolve_train_python_executable(command[0])
         command[0] = python_executable
+        if not Path(python_executable).is_file():
+            raise PipelineError(
+                "TRAINING_PYTHON_MISSING",
+                (
+                    f"Training interpreter does not exist: {python_executable}. "
+                    f"Create the gaussian-splatting venv at {gs_root / '.venv'} "
+                    "(e.g. run scripts/install_gaussian_splatting_runpod.sh), or set "
+                    "GAUSSIAN_SPLATTING_ROOT and GS_TRAIN_COMMAND to real paths on this machine."
+                ),
+            )
         torch_check = self._subprocess_run_compat(
             [python_executable, "-c", "import torch; print(torch.__version__)"],
         )
