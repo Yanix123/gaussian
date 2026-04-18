@@ -260,7 +260,7 @@ class GaussianPipeline:
         if not command:
             raise PipelineError("PIPELINE_CONFIG_ERROR", "GS_TRAIN_COMMAND resolved to an empty command")
 
-        gs_root = self.config.repo_root.parent / "gaussian-splatting"
+        gs_root = self.config.gaussian_splatting_root
         if sys.platform == "win32":
             preferred_gs_python = gs_root / ".venv" / "Scripts" / "python.exe"
         else:
@@ -342,12 +342,15 @@ class GaussianPipeline:
                 ),
             )
 
+        gs_root = self.config.gaussian_splatting_root
         raise PipelineError(
             "TRAINING_EXTENSION_MISSING",
             (
                 f"Missing gaussian-splatting extensions: {missing}. "
                 f"Training uses this interpreter only: {python_executable}. "
-                "Activate that venv (or use it explicitly), cd to the gaussian-splatting repo root, run "
+                f"Expected training venv: {gs_root / '.venv' / 'bin' / 'python'}. "
+                "If gaussian-splatting is not beside the app repo, set GAUSSIAN_SPLATTING_ROOT. "
+                "Otherwise activate that venv, cd to the gaussian-splatting repo, run "
                 "git submodule update --init --recursive, then "
                 f'"{python_executable}" -m pip install '
                 "./submodules/diff-gaussian-rasterization ./submodules/simple-knn --no-build-isolation. "

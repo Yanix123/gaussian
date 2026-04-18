@@ -4,9 +4,18 @@ import sys
 from pathlib import Path
 
 
+def resolve_gaussian_splatting_root(repo_root: Path) -> Path:
+    """Where graphdeco-inria/gaussian-splatting lives (with .venv). Default: sibling of app repo."""
+    override = os.getenv("GAUSSIAN_SPLATTING_ROOT", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    return (repo_root.parent / "gaussian-splatting").resolve()
+
+
 @dataclass(frozen=True)
 class PipelineConfig:
     repo_root: Path
+    gaussian_splatting_root: Path
     uploads_root: Path
     work_root: Path
     artifacts_root: Path
@@ -19,7 +28,7 @@ class PipelineConfig:
 
 def build_default_config() -> PipelineConfig:
     repo_root = Path(__file__).resolve().parents[1]
-    sibling_gs_root = repo_root.parent / "gaussian-splatting"
+    sibling_gs_root = resolve_gaussian_splatting_root(repo_root)
     if sys.platform == "win32":
         sibling_gs_python = sibling_gs_root / ".venv" / "Scripts" / "python.exe"
     else:
@@ -37,6 +46,7 @@ def build_default_config() -> PipelineConfig:
     min_sparse_points = int(os.getenv("GAUSSIAN_MIN_SPARSE_POINTS", "200"))
     return PipelineConfig(
         repo_root=repo_root,
+        gaussian_splatting_root=sibling_gs_root,
         uploads_root=repo_root / "uploads",
         work_root=repo_root / "work",
         artifacts_root=repo_root / "artifacts",
