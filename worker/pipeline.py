@@ -132,7 +132,31 @@ class GaussianPipeline:
         env = os.environ.copy()
         if "QT_QPA_PLATFORM" not in env:
             env["QT_QPA_PLATFORM"] = os.environ.get("GAUSSIAN_QT_QPA_PLATFORM", "offscreen")
+        env.setdefault("XDG_RUNTIME_DIR", os.environ.get("GAUSSIAN_XDG_RUNTIME_DIR", "/tmp"))
         return env
+
+    def _colmap_use_gpu_cli(self) -> bool:
+        """GPU SIFT needs OpenGL; headless servers should set GAUSSIAN_COLMAP_USE_GPU=0 (default)."""
+        return os.getenv("GAUSSIAN_COLMAP_USE_GPU", "0").strip().lower() in ("1", "true", "yes")
+
+    def _colmap_cpu_sift_flags(self, stage: str) -> list[str]:
+        """COLMAP 3: SiftExtraction / SiftMatching; COLMAP 4: FeatureExtraction / FeatureMatching."""
+        if self._colmap_use_gpu_cli():
+            return []
+        legacy = os.getenv("GAUSSIAN_COLMAP_LEGACY_SIFT_FLAGS", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if stage == "extract":
+            if legacy:
+                return ["--SiftExtraction.use_gpu", "0"]
+            return ["--FeatureExtraction.use_gpu", "0"]
+        if stage == "match":
+            if legacy:
+                return ["--SiftMatching.use_gpu", "0"]
+            return ["--FeatureMatching.use_gpu", "0"]
+        return []
 
     def _run_colmap(self, job_id: str, uploads_dir: Path, colmap_dir: Path, image_count: int) -> tuple[int, int]:
         colmap_cmd = self._colmap_prefix()
@@ -156,11 +180,14 @@ class GaussianPipeline:
                 str(db),
                 "--image_path",
                 str(uploads_dir),
-            ],
+            ]
+            + self._colmap_cpu_sift_flags("extract"),
             env=colmap_env,
         )
         self._run_cmd(
-            colmap_cmd + ["exhaustive_matcher", "--database_path", str(db)],
+            colmap_cmd
+            + ["exhaustive_matcher", "--database_path", str(db)]
+            + self._colmap_cpu_sift_flags("match"),
             env=colmap_env,
         )
         self._run_cmd(
