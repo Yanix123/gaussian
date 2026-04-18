@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 import platform
@@ -11,6 +12,31 @@ from time import sleep
 from typing import Callable, Optional
 
 from worker.config import PipelineConfig
+
+
+@functools.lru_cache(maxsize=1)
+def _colmap_prefers_legacy_sift_option_names() -> bool:
+    """COLMAP 3.x uses SiftExtraction/SiftMatching; 4.x uses FeatureExtraction/FeatureMatching."""
+    override = os.getenv("GAUSSIAN_COLMAP_LEGACY_SIFT_FLAGS", "").strip().lower()
+    if override in ("1", "true", "yes"):
+        return True
+    if override in ("0", "false", "no"):
+        return False
+    try:
+        r = subprocess.run(
+            ["colmap", "feature_extractor", "-h"],
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        text = (r.stdout or "") + (r.stderr or "")
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return True
+    if "FeatureExtraction.use_gpu" in text:
+        return False
+    if "SiftExtraction.use_gpu" in text:
+        return True
+    return True
 
 
 class PipelineError(RuntimeError):
@@ -143,11 +169,7 @@ class GaussianPipeline:
         """COLMAP 3: SiftExtraction / SiftMatching; COLMAP 4: FeatureExtraction / FeatureMatching."""
         if self._colmap_use_gpu_cli():
             return []
-        legacy = os.getenv("GAUSSIAN_COLMAP_LEGACY_SIFT_FLAGS", "0").strip().lower() in (
-            "1",
-            "true",
-            "yes",
-        )
+        legacy = _colmap_prefers_legacy_sift_option_names()
         if stage == "extract":
             if legacy:
                 return ["--SiftExtraction.use_gpu", "0"]
