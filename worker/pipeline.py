@@ -272,8 +272,16 @@ class GaussianPipeline:
             command = shlex.split(command[0], posix=os.name != "nt")
             command = [t.strip().strip('"').strip("'") for t in command]
 
-        if command[0] in {"python", "python3", "/usr/bin/python", "/usr/bin/python3"} and preferred_gs_python.exists():
-            command[0] = str(preferred_gs_python)
+        if preferred_gs_python.is_file() and preferred_train_script.is_file():
+            token0 = command[0]
+            try:
+                abs0 = str(Path(token0).resolve()) if token0 else ""
+            except OSError:
+                abs0 = token0
+            looks_like_system_python = abs0.startswith(("/usr/bin/python", "/usr/local/bin/python"))
+            looks_like_bare_invocation = token0 in {"python", "python3", "/usr/bin/python", "/usr/bin/python3"}
+            if looks_like_bare_invocation or looks_like_system_python:
+                command[0] = str(preferred_gs_python)
 
         for index, part in enumerate(command):
             if part == "/path/to/gaussian-splatting/train.py" and preferred_train_script.exists():
